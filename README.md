@@ -9,7 +9,7 @@
 
 用提供的某支证券为期不超过一周的高频数据复制 Table A2 中 39 种指标。
 
-![image-20230314121903928](README-image/image-20230314121903928.png){width=500px}
+![image-20230314121903928](README-image/image-20230314121903928.png)
 
 <!-- more -->
 
