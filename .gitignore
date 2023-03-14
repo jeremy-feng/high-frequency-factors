@@ -1,4 +1,5 @@
-__pychache__
+/__pychache__
 .ipynb_checkpoints
 /data
 /factor
+.DS_Store
