@@ -1,5 +1,4 @@
-/__pycache__
-.ipynb_checkpoints
 /data
 /factor
-.DS_Store
+草稿.py
+*.csv
