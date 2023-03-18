@@ -23,17 +23,18 @@
 
 ## 因子计算结果
 
-每天的数据范围：`9:30-11:30` 和 `13:00-15:00`。
+每天的数据范围：`9:30-11:30` 和 `13:00-15:00`，采样时点均为左开右闭，即：
 
-每天有 240 分钟，每分钟有 60 秒，上午和下午两个时段共有 2 个头尾，一共 5 天，因此一共 72010 行数据。
+- 上午从 9:31 开始有第一笔数据，11:30 为上午的最后一笔数据。
+- 下午从 13:01 开始有第一笔数据，15:00 为下午的最后一笔数据。
+- 每天有 240 分钟，一共 5 天，因此一共 1200 行数据。
 
-![image-20230315012459879](README-image/image-20230315012459879.png)
-
-![image-20230315012305308](README-image/image-20230315012305308.png)
+![image-20230318224243380](README-image/image-20230318224243380.png)
 
 ## 计算因子的代码
 
 自动更新类和函数中的代码更新，便于调试
+
 
 ```python
 %load_ext autoreload
@@ -42,58 +43,78 @@
 
 导入类和函数
 
+
 ```python
 from functions import *
 ```
 
 创建因子生成器的实例 factor_calculator
 
+
 ```python
 factor_calculator = FactorCalculator(
     order_path="./data/order_stkhf202101_000001sz.csv",
     trade_path="./data/trade_stkhf202101_000001sz.csv",
-    factors_index_path="./factors/factors_index.csv",
+    factors_index_second_path="./factors/factors_index_second.csv",
 )
 ```
 
 计算所有因子，并分别导出为 csv 文件
 
+
 ```python
 # 初始化所有因子
-factors = None
-# 逐个计算因子，并保存到本地文件，同时将所有因子合并到 factors 这个 DataFrame 中
+factors_second = None
+# 逐个计算因子，并保存到本地文件，同时将所有因子合并到 factors_second 这个 DataFrame 中
 for i in tqdm(range(1, 39 + 1)):
-    # 由于中国股市没有 fill and kill 数据，因此跳过 A9
-    if i == 9:
-        continue
     Ai = eval("factor_calculator.calculate_A" + str(i))()
     # 保存单个因子到本地文件
     Ai.to_csv("./factors/A" + str(i) + ".csv", index=False)
     # 将单个因子添加到所有因子中
-    if factors is None:
-        factors = Ai
+    if factors_second is None:
+        factors_second = Ai
     else:
-        factors["A" + str(i)] = Ai["A" + str(i)]
+        factors_second["A" + str(i)] = Ai["A" + str(i)]
 ```
 
     100%|██████████| 39/39 [00:12<00:00,  3.05it/s]
 
-将所有因子导出为一个 csv 文件
+
+将所有秒钟频率的因子导出为一个 csv 文件
+
 
 ```python
 # 将所有因子的 index 转换为 datetime 类型
-factors.index = pd.to_datetime(
-    factors["info_date_ymd"].astype(str) + " " + factors["info_time_hms"].astype(str),
+factors_second.index = pd.to_datetime(
+    factors_second["info_date_ymd"].astype(str) + " " + factors_second["info_time_hms"].astype(str),
     format="%Y%m%d %H%M%S",
 )
 # 保留 9:30-11:30, 13:00-15:00 的数据，即删除 9:15-9:25 的数据
-idx1 = factors.index.indexer_between_time("9:30", "11:30")
-idx2 = factors.index.indexer_between_time("13:00", "15:00")
-factors = factors.iloc[np.union1d(idx1, idx2)]
+idx1 = factors_second.index.indexer_between_time("9:30", "11:30")
+idx2 = factors_second.index.indexer_between_time("13:00", "15:00")
+factors_second = factors_second.iloc[np.union1d(idx1, idx2)]
 # 重置索引
-factors = factors.reset_index(drop=True)
+factors_second = factors_second.reset_index(drop=True)
 # 将所有因子保存到本地文件
-factors.to_csv("./factors/all_factors.csv", index=False)
+factors_second.to_csv("./factors/all_factors_second.csv", index=False)
+```
+
+将秒钟频率的因子重采样为分钟频率的因子
+
+```python
+# 将秒钟频率的因子数据的 index 转换为 datetime 类型
+factors_second.index = pd.to_datetime(
+    factors_second["info_date_ymd"].astype(str) + " " + factors_second["info_time_hms"].astype(str),
+    format="%Y%m%d %H%M%S",
+)
+# 将秒钟频率的因子数据转换为分钟频率的因子数据
+factors_minute = factors_second.resample('1Min', label="right", closed="right").last()
+# 保留 9:31-11:30, 13:01-15:00 的数据
+idx1 = factors_minute.index.indexer_between_time("9:31", "11:30")
+idx2 = factors_minute.index.indexer_between_time("13:01", "15:00")
+factors_minute = factors_minute.iloc[np.union1d(idx1, idx2)]
+# 导出分钟频率的因子数据
+factors_minute.to_csv("./factors/all_factors_minute.csv", index=False)
 ```
 
 ## 构造因子的函数
@@ -118,12 +139,13 @@ import numpy as np
 import os
 from tqdm import tqdm
 
+
 class FactorCalculator:
     def __init__(
         self,
         order_path: str,
         trade_path: str,
-        factors_index_path: str,
+        factors_index_second_path: str,
     ) -> None:
         """
 
@@ -133,13 +155,13 @@ class FactorCalculator:
             Path of order data
         trade_path : str
             Path of trade data
-        factors_index_path : str
-            Path of factors index
+        factors_index_second_path : str
+            Path of factors index with second frequency
 
         """
         self.order_path = order_path
         self.trade_path = trade_path
-        self.factors_index_path = factors_index_path
+        self.factors_index_second_path = factors_index_second_path
         # 读取 order 数据
         self.order = pd.read_csv(
             self.order_path,
@@ -180,9 +202,9 @@ class FactorCalculator:
             },
         )
         # 如果存在所有因子的数据文件，则读取因子数据
-        if os.path.exists(self.factors_index_path):
-            self.factors_index = pd.read_csv(self.factors_index_path)
-            self.factors_index = self.factors_index.set_index(
+        if os.path.exists(self.factors_index_second_path):
+            self.factors_index_second = pd.read_csv(self.factors_index_second_path)
+            self.factors_index_second = self.factors_index_second.set_index(
                 ["Code_Mkt", "Qdate", "Qtime"]
             )
         else:
@@ -243,11 +265,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderRecNo"].count()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 order 数量之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -282,9 +304,9 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderRecNo"].count()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算当前累积的 order 数量之和
-        factor = factor.groupby(by=["Code_Mkt", "Qdate"]).cumsum()
+        factor = factor.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
         # 整理格式
         factor = self.format_factor(factor)
         factor.rename(
@@ -316,11 +338,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 OrderVol 之和
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderVol"].sum()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 OrderVol 之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -355,9 +377,9 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 OrderVol 之和
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderVol"].sum()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算当前累积的 OrderVol 之和之和
-        factor = factor.groupby(by=["Code_Mkt", "Qdate"]).cumsum()
+        factor = factor.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
         # 整理格式
         factor = self.format_factor(factor)
         factor.rename(
@@ -391,11 +413,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderRecNo"].count()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 order 数量之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -410,3 +432,4 @@ class FactorCalculator:
         factor["A5"] = factor["A5"].astype(float)
         return factor
 ```
+
