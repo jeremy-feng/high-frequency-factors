@@ -21,7 +21,7 @@ class FactorCalculator:
         self,
         order_path: str,
         trade_path: str,
-        factors_index_path: str,
+        factors_index_second_path: str,
     ) -> None:
         """
 
@@ -31,13 +31,13 @@ class FactorCalculator:
             Path of order data
         trade_path : str
             Path of trade data
-        factors_index_path : str
-            Path of factors index
+        factors_index_second_path : str
+            Path of factors index with second frequency
 
         """
         self.order_path = order_path
         self.trade_path = trade_path
-        self.factors_index_path = factors_index_path
+        self.factors_index_second_path = factors_index_second_path
         # 读取 order 数据
         self.order = pd.read_csv(
             self.order_path,
@@ -78,9 +78,9 @@ class FactorCalculator:
             },
         )
         # 如果存在所有因子的数据文件，则读取因子数据
-        if os.path.exists(self.factors_index_path):
-            self.factors_index = pd.read_csv(self.factors_index_path)
-            self.factors_index = self.factors_index.set_index(
+        if os.path.exists(self.factors_index_second_path):
+            self.factors_index_second = pd.read_csv(self.factors_index_second_path)
+            self.factors_index_second = self.factors_index_second.set_index(
                 ["Code_Mkt", "Qdate", "Qtime"]
             )
         else:
@@ -141,11 +141,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderRecNo"].count()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 order 数量之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -180,9 +180,9 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderRecNo"].count()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算当前累积的 order 数量之和
-        factor = factor.groupby(by=["Code_Mkt", "Qdate"]).cumsum()
+        factor = factor.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
         # 整理格式
         factor = self.format_factor(factor)
         factor.rename(
@@ -214,11 +214,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 OrderVol 之和
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderVol"].sum()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 OrderVol 之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -253,9 +253,9 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 OrderVol 之和
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderVol"].sum()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算当前累积的 OrderVol 之和之和
-        factor = factor.groupby(by=["Code_Mkt", "Qdate"]).cumsum()
+        factor = factor.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
         # 整理格式
         factor = self.format_factor(factor)
         factor.rename(
@@ -289,11 +289,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderRecNo"].count()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 order 数量之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -330,11 +330,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderRecNo"].count()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 order 数量之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -371,11 +371,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 OrderVol 之和
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderVol"].sum()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 OrderVol 之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -412,11 +412,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 OrderVol 之和
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["OrderVol"].sum()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 OrderVol 之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -445,8 +445,13 @@ class FactorCalculator:
         pd.DataFrame
             Number of fill and kill orders arriving in the last 60 s
         """
-        # 没有 fill and kill orders 数据，无法计算
-        return pd.DataFrame()
+        # 由于中国股市没有 fill and kill 数据，因此将 A9 全部设为空值
+        factor = pd.DataFrame(index=self.factors_index_second.index, columns=["A9"])
+        factor["A9"] = np.NaN
+        # 整理格式
+        factor = self.format_factor(factor)
+        factor["A9"] = factor["A9"].astype(float)
+        return factor
 
     def calculate_A10(self, data: pd.DataFrame = None) -> pd.DataFrame:
         """
@@ -470,11 +475,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["RecNo"].count()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 order 数量之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -511,11 +516,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 Tvolume 之和
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["Tvolume"].sum()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 Tvolume 之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -552,11 +557,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["RecNo"].count()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 order 数量之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -593,11 +598,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["RecNo"].count()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 order 数量之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -634,11 +639,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 Tvolume 之和
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["Tvolume"].sum()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 Tvolume 之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -675,11 +680,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 Tvolume 之和
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["Tvolume"].sum()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 Tvolume 之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -716,9 +721,9 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["RecNo"].count()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 按照股票和日期分组。在组内，对于每一秒，计算当前累积的 order 数量之和
-        factor = factor.groupby(by=["Code_Mkt", "Qdate"]).cumsum()
+        factor = factor.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
         # 整理格式
         factor = self.format_factor(factor)
         factor.rename(
@@ -789,13 +794,13 @@ class FactorCalculator:
         # 计算成交额
         trade_order["Tamount"] = trade_order["Tvolume"] * trade_order["OrderPr"]
         # 计算累计成交额
-        trade_order["Tamount_cumsum"] = trade_order.groupby(["Code_Mkt", "Qdate"])[
-            "Tamount"
-        ].cumsum()
+        trade_order["Tamount_cumsum"] = (
+            trade_order.groupby(["Code_Mkt", "Qdate"])["Tamount"].cumsum().shift(1)
+        )
         # 计算累计成交量
-        trade_order["Tvolume_cumsum"] = trade_order.groupby(["Code_Mkt", "Qdate"])[
-            "Tvolume"
-        ].cumsum()
+        trade_order["Tvolume_cumsum"] = (
+            trade_order.groupby(["Code_Mkt", "Qdate"])["Tvolume"].cumsum().shift(1)
+        )
         # 计算 VWAP
         trade_order["VWAP"] = (
             trade_order["Tamount_cumsum"] / trade_order["Tvolume_cumsum"]
@@ -816,7 +821,7 @@ class FactorCalculator:
         )
         # 对比 factor_index，用前一秒钟的数据填补缺失值
         factor.set_index(["Code_Mkt", "Qdate", "Qtime"], inplace=True)
-        factor = factor.reindex(self.factors_index.index, method="ffill")
+        factor = factor.reindex(self.factors_index_second.index, method="ffill")
         # 整理格式
         factor = self.format_factor(factor)
         factor.rename(
@@ -885,13 +890,13 @@ class FactorCalculator:
         # 计算成交额
         trade_order["Tamount"] = trade_order["Tvolume"] * trade_order["OrderPr"]
         # 计算累计成交额
-        trade_order["Tamount_cumsum"] = trade_order.groupby(["Code_Mkt", "Qdate"])[
-            "Tamount"
-        ].cumsum()
+        trade_order["Tamount_cumsum"] = (
+            trade_order.groupby(["Code_Mkt", "Qdate"])["Tamount"].cumsum().shift(1)
+        )
         # 计算累计成交量
-        trade_order["Tvolume_cumsum"] = trade_order.groupby(["Code_Mkt", "Qdate"])[
-            "Tvolume"
-        ].cumsum()
+        trade_order["Tvolume_cumsum"] = (
+            trade_order.groupby(["Code_Mkt", "Qdate"])["Tvolume"].cumsum().shift(1)
+        )
         # 计算 VWAP
         trade_order["VWAP"] = (
             trade_order["Tamount_cumsum"] / trade_order["Tvolume_cumsum"]
@@ -912,7 +917,7 @@ class FactorCalculator:
         )
         # 对比 factor_index，用前一秒钟的数据填补缺失值
         factor.set_index(["Code_Mkt", "Qdate", "Qtime"], inplace=True)
-        factor = factor.reindex(self.factors_index.index, method="ffill")
+        factor = factor.reindex(self.factors_index_second.index, method="ffill")
         # 整理格式
         factor = self.format_factor(factor)
         factor.rename(
@@ -981,13 +986,13 @@ class FactorCalculator:
         # 计算成交额
         trade_order["Tamount"] = trade_order["Tvolume"] * trade_order["OrderPr"]
         # 计算累计成交额
-        trade_order["Tamount_cumsum"] = trade_order.groupby(["Code_Mkt", "Qdate"])[
-            "Tamount"
-        ].cumsum()
+        trade_order["Tamount_cumsum"] = (
+            trade_order.groupby(["Code_Mkt", "Qdate"])["Tamount"].cumsum().shift(1)
+        )
         # 计算累计成交量
-        trade_order["Tvolume_cumsum"] = trade_order.groupby(["Code_Mkt", "Qdate"])[
-            "Tvolume"
-        ].cumsum()
+        trade_order["Tvolume_cumsum"] = (
+            trade_order.groupby(["Code_Mkt", "Qdate"])["Tvolume"].cumsum().shift(1)
+        )
         # 计算 VWAP
         trade_order["VWAP"] = (
             trade_order["Tamount_cumsum"] / trade_order["Tvolume_cumsum"]
@@ -1008,7 +1013,7 @@ class FactorCalculator:
         )
         # 对比 factor_index，用前一秒钟的数据填补缺失值
         factor.set_index(["Code_Mkt", "Qdate", "Qtime"], inplace=True)
-        factor = factor.reindex(self.factors_index.index, method="ffill")
+        factor = factor.reindex(self.factors_index_second.index, method="ffill")
         # 整理格式
         factor = self.format_factor(factor)
         factor.rename(
@@ -1049,12 +1054,12 @@ class FactorCalculator:
             "RecNo"
         ].count()
         # 对比 factor_index，填补缺失值为 0
-        cabcelled_orders = cabcelled_orders.reindex(self.factors_index.index)
+        cabcelled_orders = cabcelled_orders.reindex(self.factors_index_second.index)
         cabcelled_orders = cabcelled_orders.fillna(0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 cancelled orders 数量之和
         cabcelled_orders = (
             cabcelled_orders.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -1063,12 +1068,12 @@ class FactorCalculator:
             "OrderRecNo"
         ].count()
         # 对比 factor_index，填补缺失值为 0
-        arrived_orders = arrived_orders.reindex(self.factors_index.index)
+        arrived_orders = arrived_orders.reindex(self.factors_index_second.index)
         arrived_orders = arrived_orders.fillna(0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 arrived orders 数量之和
         arrived_orders = (
             arrived_orders.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -1115,12 +1120,12 @@ class FactorCalculator:
             "Tvolume"
         ].sum()
         # 对比 factor_index，填补缺失值为 0
-        cabcelled_orders = cabcelled_orders.reindex(self.factors_index.index)
+        cabcelled_orders = cabcelled_orders.reindex(self.factors_index_second.index)
         cabcelled_orders = cabcelled_orders.fillna(0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 quantity of cancelled orders 数量之和
         cabcelled_orders = (
             cabcelled_orders.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -1129,12 +1134,12 @@ class FactorCalculator:
             "OrderVol"
         ].sum()
         # 对比 factor_index，填补缺失值为 0
-        arrived_orders = arrived_orders.reindex(self.factors_index.index)
+        arrived_orders = arrived_orders.reindex(self.factors_index_second.index)
         arrived_orders = arrived_orders.fillna(0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 quantity of arrived orders 数量之和
         arrived_orders = (
             arrived_orders.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -1181,19 +1186,23 @@ class FactorCalculator:
             "RecNo"
         ].count()
         # 对比 factor_index，填补缺失值为 0
-        cabcelled_orders = cabcelled_orders.reindex(self.factors_index.index)
+        cabcelled_orders = cabcelled_orders.reindex(self.factors_index_second.index)
         cabcelled_orders = cabcelled_orders.fillna(0)
         # 按照股票和日期分组。在组内，对于每一秒，计算至今的 cancelled orders 数量之和
-        cabcelled_orders = cabcelled_orders.groupby(by=["Code_Mkt", "Qdate"]).cumsum()
+        cabcelled_orders = (
+            cabcelled_orders.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
+        )
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 arrived orders 数量
         arrived_orders = order_data.groupby(["Code_Mkt", "Qdate", "Qtime"])[
             "OrderRecNo"
         ].count()
         # 对比 factor_index，填补缺失值为 0
-        arrived_orders = arrived_orders.reindex(self.factors_index.index)
+        arrived_orders = arrived_orders.reindex(self.factors_index_second.index)
         arrived_orders = arrived_orders.fillna(0)
         # 按照股票和日期分组。在组内，对于每一秒，计算至今的 arrived orders 数量之和
-        arrived_orders = arrived_orders.groupby(by=["Code_Mkt", "Qdate"]).cumsum()
+        arrived_orders = (
+            arrived_orders.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
+        )
         # 计算 Ratio of the total number of cancelled orders to the total number of arrived orders up to that time
         factor = cabcelled_orders / arrived_orders
         # 整理格式
@@ -1237,19 +1246,23 @@ class FactorCalculator:
             "Tvolume"
         ].sum()
         # 对比 factor_index，填补缺失值为 0
-        cabcelled_orders = cabcelled_orders.reindex(self.factors_index.index)
+        cabcelled_orders = cabcelled_orders.reindex(self.factors_index_second.index)
         cabcelled_orders = cabcelled_orders.fillna(0)
         # 按照股票和日期分组。在组内，对于每一秒，计算至今的 quantity of cancelled orders 数量之和
-        cabcelled_orders = cabcelled_orders.groupby(by=["Code_Mkt", "Qdate"]).cumsum()
+        cabcelled_orders = (
+            cabcelled_orders.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
+        )
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 quantity of arrived orders 数量之和
         arrived_orders = order_data.groupby(["Code_Mkt", "Qdate", "Qtime"])[
             "OrderVol"
         ].sum()
         # 对比 factor_index，填补缺失值为 0
-        arrived_orders = arrived_orders.reindex(self.factors_index.index)
+        arrived_orders = arrived_orders.reindex(self.factors_index_second.index)
         arrived_orders = arrived_orders.fillna(0)
         # 按照股票和日期分组。在组内，对于每一秒，计算至今的 quantity of arrived orders 数量之和
-        arrived_orders = arrived_orders.groupby(by=["Code_Mkt", "Qdate"]).cumsum()
+        arrived_orders = (
+            arrived_orders.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
+        )
         # 计算 Ratio of the total quantity of cancelled orders to the total quantity of arrived orders up to that time
         factor = cabcelled_orders / arrived_orders
         # 整理格式
@@ -1288,7 +1301,7 @@ class FactorCalculator:
             .sum()
         )
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 将秒钟索引转换为 datetime 格式
         factor.index = factor.index.set_levels(
             [
@@ -1314,7 +1327,7 @@ class FactorCalculator:
             ]
         )
         # 对比 factor_index，缺失值为 NaN
-        factor = factor.reindex(self.factors_index.index)
+        factor = factor.reindex(self.factors_index_second.index)
         # 整理格式
         factor = self.format_factor(factor)
         factor.rename(
@@ -1350,7 +1363,7 @@ class FactorCalculator:
             .sum()
         )
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 将秒钟索引转换为 datetime 格式
         factor.index = factor.index.set_levels(
             [
@@ -1376,7 +1389,7 @@ class FactorCalculator:
             ]
         )
         # 对比 factor_index，缺失值为 NaN
-        factor = factor.reindex(self.factors_index.index)
+        factor = factor.reindex(self.factors_index_second.index)
         # 整理格式
         factor = self.format_factor(factor)
         factor.rename(
@@ -1412,7 +1425,7 @@ class FactorCalculator:
             .sum()
         )
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 将秒钟索引转换为 datetime 格式
         factor.index = factor.index.set_levels(
             [
@@ -1438,7 +1451,7 @@ class FactorCalculator:
             ]
         )
         # 对比 factor_index，缺失值为 NaN
-        factor = factor.reindex(self.factors_index.index)
+        factor = factor.reindex(self.factors_index_second.index)
         # 整理格式
         factor = self.format_factor(factor)
         factor.rename(
@@ -1474,7 +1487,7 @@ class FactorCalculator:
             .sum()
         )
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 将秒钟索引转换为 datetime 格式
         factor.index = factor.index.set_levels(
             [
@@ -1500,7 +1513,7 @@ class FactorCalculator:
             ]
         )
         # 对比 factor_index，缺失值为 NaN
-        factor = factor.reindex(self.factors_index.index)
+        factor = factor.reindex(self.factors_index_second.index)
         # 整理格式
         factor = self.format_factor(factor)
         factor.rename(
@@ -1572,7 +1585,7 @@ class FactorCalculator:
             ]
         )
         # 对比 factor_index，缺失值为 NaN
-        factor = factor.reindex(self.factors_index.index)
+        factor = factor.reindex(self.factors_index_second.index)
         # 整理格式
         factor.name = "VWAP_of_trades_in_the_last_5_min"
         factor = self.format_factor(factor)
@@ -1621,15 +1634,15 @@ class FactorCalculator:
             ["Tvolume", "Tamount"]
         ].sum()
         # 对比 factor_index，填补缺失值为 0
-        factor = factor.reindex(self.factors_index.index, fill_value=0)
+        factor = factor.reindex(self.factors_index_second.index, fill_value=0)
         # 计算累计成交额
-        factor["Tamount_cumsum"] = factor.groupby(["Code_Mkt", "Qdate"])[
-            "Tamount"
-        ].cumsum()
+        factor["Tamount_cumsum"] = (
+            factor.groupby(["Code_Mkt", "Qdate"])["Tamount"].cumsum().shift(1)
+        )
         # 计算累计成交量
-        factor["Tvolume_cumsum"] = factor.groupby(["Code_Mkt", "Qdate"])[
-            "Tvolume"
-        ].cumsum()
+        factor["Tvolume_cumsum"] = (
+            factor.groupby(["Code_Mkt", "Qdate"])["Tvolume"].cumsum().shift(1)
+        )
         # 计算 VWAP
         factor["VWAP"] = factor["Tamount_cumsum"] / factor["Tvolume_cumsum"]
         # 提取出必要的数据
@@ -1705,7 +1718,7 @@ class FactorCalculator:
             ]
         )
         # 对比 factor_index，缺失值为 NaN
-        factor = factor.reindex(self.factors_index.index)
+        factor = factor.reindex(self.factors_index_second.index)
         # 整理格式
         factor.name = "VWAP_of_buyer-initiated_trades_in_the_last_5_min"
         factor = self.format_factor(factor)
@@ -1778,7 +1791,7 @@ class FactorCalculator:
             ]
         )
         # 对比 factor_index，缺失值为 NaN
-        factor = factor.reindex(self.factors_index.index)
+        factor = factor.reindex(self.factors_index_second.index)
         # 整理格式
         factor.name = "VWAP_of_seller-initiated_trades_in_the_last_5_min"
         factor = self.format_factor(factor)
@@ -1813,11 +1826,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["RecNo"].count()
         # 对比 factor_index，填充缺失值为 0
-        factor = factor.reindex(self.factors_index.index).fillna(0)
+        factor = factor.reindex(self.factors_index_second.index).fillna(0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 order 数量之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -1854,11 +1867,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order 数量
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["RecNo"].count()
         # 对比 factor_index，填充缺失值为 0
-        factor = factor.reindex(self.factors_index.index).fillna(0)
+        factor = factor.reindex(self.factors_index_second.index).fillna(0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 order 数量之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -1895,11 +1908,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order Tvolume 之和
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["Tvolume"].sum()
         # 对比 factor_index，填充缺失值为 0
-        factor = factor.reindex(self.factors_index.index).fillna(0)
+        factor = factor.reindex(self.factors_index_second.index).fillna(0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 Tvolume 之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -1938,11 +1951,11 @@ class FactorCalculator:
         # 按照股票、日期和秒钟分组。在组内，计算每秒的 order Tvolume 之和
         factor = data.groupby(["Code_Mkt", "Qdate", "Qtime"])["Tvolume"].sum()
         # 对比 factor_index，填充缺失值为 0
-        factor = factor.reindex(self.factors_index.index).fillna(0)
+        factor = factor.reindex(self.factors_index_second.index).fillna(0)
         # 按照股票和日期分组。在组内，对于每一秒，计算过去 60 秒的 Tvolume 之和
         factor = (
             factor.groupby(by=["Code_Mkt", "Qdate"])
-            .rolling(60)
+            .rolling(60, closed="left")
             .sum()
             .droplevel(level=[0, 1])
         )
@@ -2061,12 +2074,12 @@ class FactorCalculator:
         )["RecNo"].count()
         # 对比 factor_index，填充缺失值为 0
         buyer_initiated_trades = buyer_initiated_trades.reindex(
-            self.factors_index.index, fill_value=0
+            self.factors_index_second.index, fill_value=0
         )
         # 按照股票和日期分组。在组内，对于每一秒，计算过去所有秒的 trade 数量之和
-        buyer_initiated_trades = buyer_initiated_trades.groupby(
-            by=["Code_Mkt", "Qdate"]
-        ).cumsum()
+        buyer_initiated_trades = (
+            buyer_initiated_trades.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
+        )
         # 计算 Cumulative seller-initiated trades
         # 筛选出 seller-initiated trades
         seller_initiated_data = data[data["Trdirec"] == "1"]
@@ -2076,12 +2089,12 @@ class FactorCalculator:
         )["RecNo"].count()
         # 对比 factor_index，填充缺失值为 0
         seller_initiated_trades = seller_initiated_trades.reindex(
-            self.factors_index.index, fill_value=0
+            self.factors_index_second.index, fill_value=0
         )
         # 按照股票和日期分组。在组内，对于每一秒，计算过去所有秒的 trade 数量之和
-        seller_initiated_trades = seller_initiated_trades.groupby(
-            by=["Code_Mkt", "Qdate"]
-        ).cumsum()
+        seller_initiated_trades = (
+            seller_initiated_trades.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
+        )
         # 计算 Cumulative buyer-initiated trades / Cumulative seller-initiated trades
         factor = buyer_initiated_trades / seller_initiated_trades
         # 整理格式
@@ -2123,12 +2136,12 @@ class FactorCalculator:
         )["Tvolume"].sum()
         # 对比 factor_index，填充缺失值为 0
         buyer_initiated_trades = buyer_initiated_trades.reindex(
-            self.factors_index.index, fill_value=0
+            self.factors_index_second.index, fill_value=0
         )
         # 按照股票和日期分组。在组内，对于每一秒，计算过去所有秒的 volume 之和
-        buyer_initiated_trades = buyer_initiated_trades.groupby(
-            by=["Code_Mkt", "Qdate"]
-        ).cumsum()
+        buyer_initiated_trades = (
+            buyer_initiated_trades.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
+        )
         # 计算 Cumulative seller-initiated trades
         # 筛选出 seller-initiated trades
         seller_initiated_data = data[data["Trdirec"] == "1"]
@@ -2138,12 +2151,12 @@ class FactorCalculator:
         )["Tvolume"].sum()
         # 对比 factor_index，填充缺失值为 0
         seller_initiated_trades = seller_initiated_trades.reindex(
-            self.factors_index.index, fill_value=0
+            self.factors_index_second.index, fill_value=0
         )
         # 按照股票和日期分组。在组内，对于每一秒，计算过去所有秒的 volume 之和
-        seller_initiated_trades = seller_initiated_trades.groupby(
-            by=["Code_Mkt", "Qdate"]
-        ).cumsum()
+        seller_initiated_trades = (
+            seller_initiated_trades.groupby(by=["Code_Mkt", "Qdate"]).cumsum().shift(1)
+        )
         # 计算 Cumulative quantity of buyer-initiated trades / Cumulative seller-initiated trades
         factor = buyer_initiated_trades / seller_initiated_trades
         # 整理格式
