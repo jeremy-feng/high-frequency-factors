@@ -1,6 +1,9 @@
 # 基于逐笔委托和逐笔成交数据构造高频因子
 
-[完整项目文件](https://github.com/jeremy-feng/high-frequency-factors/files/12879781/high-frequency-factors.zip)（包含数据）。
+
+> **Note**
+> 
+> [完整项目文件](https://github.com/jeremy-feng/high-frequency-factors/files/12879781/high-frequency-factors.zip)（包含数据）。
 
 量化投资策略设计与分析的第一次作业是基于逐笔数据构造 39 个高频因子。我对高频因子的构造经验比较少，完成这个作业后的一些经验：
 
